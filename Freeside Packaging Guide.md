@@ -95,6 +95,7 @@ MAKE_FLAGS = "-j8"
 
 The packaging system automatically exports the following metadata variables to the build environment:
 
+*   **`DESTDIR`**: The absolute path to the target staging directory (only exported during the `package` phase).
 *   **`PKG_NAME`**: The name of the package.
 *   **`PKG_VERSION`**: The version of the package.
 *   **`PKG_DESCRIPTION`**: A short description of the package.
@@ -105,7 +106,7 @@ The packaging system automatically exports the following metadata variables to t
 
 ## 3. The Build Recipe (`package.justfile`)
 
-The build recipe is standard `justfile` syntax. It must implement two mandatory recipes: `build` and `package destdir`.
+The build recipe is standard `justfile` syntax. It must implement two mandatory recipes: `build` and `package`.
 
 ```just
 build:
@@ -115,18 +116,18 @@ build:
     # Environment variables from build.environment are automatically inherited!
     cd $PKG_NAME-$PKG_VERSION && ./configure $CONFIGURE_ARGS && make -j$(nproc)
 
-package destdir:
+package:
     # 3. Stage the files into the target output directory
-    cd $PKG_NAME-$PKG_VERSION && make DESTDIR="{{destdir}}" install
+    cd $PKG_NAME-$PKG_VERSION && make DESTDIR="$DESTDIR" install
     # 4. Create convenience symlinks, fix permissions, and perform adjustments
-    ln -sf bash "{{destdir}}/usr/bin/sh"
-    find "{{destdir}}" -type d -exec chmod 755 {} +
+    ln -sf bash "$DESTDIR/usr/bin/sh"
+    find "$DESTDIR" -type d -exec chmod 755 {} +
 ```
 
 ### Key Execution Rules
 *   **Working Directory**: Straylight runs `just` with the working directory set to the package workspace. The extracted sources are placed in the `src/` subdirectory.
     *   To specify the source directory context, Straylight passes `-d src/` to `just`. This means your commands run relative to `src/`.
-*   **Staging Directory (`destdir`)**: The `package` recipe takes a `destdir` parameter. This is the absolute path to a staging folder. Your installation commands must write files *only* to this prefix (usually via `DESTDIR="{{destdir}}"` or `--prefix="{{destdir}}/usr"`).
+*   **Staging Directory (`DESTDIR`)**: The `package` recipe has access to the `DESTDIR` environment variable, which holds the absolute path to the staging folder. Your installation commands must write files *only* to this prefix (usually via `DESTDIR="$DESTDIR"` or `--prefix="$DESTDIR/usr"`).
 *   **Permissions Cleanup**: Always ensure directories and binaries have standard permissions inside the staging directory (e.g. `chmod 755` for directories/executable binaries, `chmod 644` for libraries and headers).
 
 ---
@@ -142,5 +143,33 @@ Understanding the compilation pipeline helps troubleshoot build issues:
 3.  **Justfile Staging**: Copies `package.justfile` to `package.justfile` in the workspace root.
 4.  **Sandbox Spawning**: Spawns a `systemd-nspawn` container using `$STRAYLIGHT_BUILDER_ROOT/sandbox` as the rootfs. It bind-mounts the package workspace to `/workspace` inside the container.
 5.  **Build Phase**: Runs `/usr/bin/just -f /workspace/package.justfile -d /workspace/src build` inside the container. All environment variables defined in the manifest's `[build.environment]` are exported to the container shell.
-6.  **Package Phase**: Runs `/usr/bin/just -f /workspace/package.justfile -d /workspace/src package /workspace/dest` inside the container.
+6.  **Package Phase**: Runs `/usr/bin/just -f /workspace/package.justfile -d /workspace/src package` inside the container with the `DESTDIR=/workspace/dest` environment variable set.
 7.  **Packaging**: Straylight reads the files installed in `/workspace/dest/`, builds a `meta/files.toml` file list ledger, packages the directories into a compressed tarball named `<package-name>-<version>-1.tar.gz`, and saves it to `$STRAYLIGHT_BUILDER_ROOT/packages/`.
+
+---
+
+## 5. Installing Locally Built Packages
+
+After building a package with `straylight build`, you can install it directly into a staging system root using the local package installer:
+
+```sh
+straylight install-pkg build/packages/<package-name>-<version>-1.tar.gz
+```
+
+This command:
+
+1. **Verifies** the package integrity by parsing `meta/files.toml` and `meta/package.manifest` from the tarball.
+2. **Caches** the package tarball to `STRAYLIGHT_PKG_CACHE_ROOT` (default: `/var/cache/straylight/packages/`).
+3. **Registers** the package under `[packages.local]` in the staging root's `packages.toml`.
+4. **Differentially copies** only changed or missing files into `STRAYLIGHT_RW_SYSTEM_ROOT`, minimizing disk writes.
+5. **Executes hooks** from `meta/hooks/` if present.
+
+### Environment Variables
+
+| Variable | Purpose | Default |
+|:---|:---|:---|
+| `STRAYLIGHT_RW_SYSTEM_ROOT` | Target staging root for file installation | `/tmp/straylight_staging_root` |
+| `STRAYLIGHT_PKG_CACHE_ROOT` | Package cache directory | `/var/cache/straylight/packages/` |
+
+See [Local Package Installation Architecture](architecture/local_package_installation.md) for full technical details.
+

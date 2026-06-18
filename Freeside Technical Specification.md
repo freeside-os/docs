@@ -203,6 +203,7 @@ The CLI provides a rich, unified user interface. Under the hood, these subcomman
 | **update** | Repository | Polls registry and updates `packages.toml` |
 | **add** | Configuration | Appends package target to `packages.toml` |
 | **build** | Compilation | Sandbox compilation of local source |
+| **install-pkg** | Local Install | Differential installation of a local `.tar.gz` package into a staging root |
 | **diff** | Diagnostics | Deep diff between stock defaults and user changes |
 | **reset** | System | Deletes local overrides for a package |
 
@@ -279,8 +280,8 @@ sha256 = "9a93b2b7df7ab77cfca24bb1c34591e5a14db1b132f123014c95d66ca8d5e60d"
 build:
     cd zlib-* && ./configure --prefix=/usr --shared && make
 
-package destdir:
-    cd zlib-* && make DESTDIR="{{destdir}}" install
+package:
+    cd zlib-* && make DESTDIR="$DESTDIR" install
 ```
 
 ## 8. Unified Kernel Image (UKI) & UEFI Boot Protocol
