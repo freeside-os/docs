@@ -35,7 +35,7 @@ To build the self-contained rootfs environment and stage compiler binaries:
     just build-bootstrap
     ```
 2.  This command runs Stage 0 Alpine host container assembly and stages the results.
-3.  Once finished, the output is saved to `build/artifacts/freeside-builder-core.tar.gz`.
+3.  Once finished, the output is saved to `build/sandbox-root.tgz`.
 
 ### B. Compiling the Straylight CLI
 
@@ -55,7 +55,7 @@ You can use the local `straylight` binary to build any package declared in `pack
     ```
 2.  **What happens under the hood:**
     *   Straylight checks for an extracted sandbox under `build/sandbox/`.
-    *   If missing, it locates `build/artifacts/freeside-builder-core.tar.gz` and extracts it.
+    *   If missing, it locates `build/sandbox-root.tgz` and extracts it.
     *   It mounts the sandbox container, binds the package source folder, and executes the compilation targets.
     *   Completed package outputs are compiled into `build/packages/`.
 
