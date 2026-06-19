@@ -74,6 +74,10 @@ Straylight integrates with the sandbox using three strictly required environment
 3.  **`STRAYLIGHT_BUILDER_OUTPUT_ROOT`**: Defines the destination folder where the compiled package binary tarballs (`.tar.gz`) are written.
 4.  **Container Chroot execution**: Runs `systemd-nspawn -D $STRAYLIGHT_BUILDER_ROOT/sandbox` to execute compile recipes within the clean sandbox environment, bind-mounting the respective directories.
 
+> [!IMPORTANT]
+> **Design Philosophy: Explicit is Better**
+> Straylight enforces strict configuration. It does not perform any workspace auto-detection (such as searching up parent directories for markers like `justfile` or `docs`) and does not fall back to implicit folder layouts. All root paths must be declared explicitly via the corresponding environment variables (typically defined in the systemd service unit or loaded from `/etc/default/straylight`).
+
 ### Lazy Self-Healing Cache Generation
 
 When building or deploying custom source configurations (e.g., items defined under `[packages.local]`), `straylight` manages its build environments automatically:
