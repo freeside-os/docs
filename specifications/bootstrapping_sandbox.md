@@ -65,14 +65,14 @@ To keep the builder sandbox lightweight and prevent init system or package manag
 
 ## 4. Straylight Sandbox Integration
 
-Straylight integrates with the sandbox transparently using the following logic:
+Straylight integrates with the sandbox using three strictly required environment variables (with no implicit defaults or fallbacks):
 
-1.  **Builder Root Resolution**: Looks for the `STRAYLIGHT_BUILDER_ROOT` environment variable, falling back to the workspace's `build/` folder.
-2.  **Sandbox Detection & Extraction**:
+1.  **`STRAYLIGHT_PACKAGES_ROOT`**: Locates the packages source recipes and manifests (e.g. `/home/dq/Code/freeside/packages`).
+2.  **`STRAYLIGHT_BUILDER_ROOT`**: Determines where the sandbox runtime files (`sandbox/`, `workspace/`, and `sandbox-root.tgz`) reside.
     *   Straylight checks for the sandbox directory under `$STRAYLIGHT_BUILDER_ROOT/sandbox`.
     *   If it does not exist, it locates `$STRAYLIGHT_BUILDER_ROOT/sandbox-root.tgz` and automatically extracts it to `$STRAYLIGHT_BUILDER_ROOT/sandbox` using host-side `tar`.
-3.  **Container Chroot execution**: Runs `systemd-nspawn -D $STRAYLIGHT_BUILDER_ROOT/sandbox` to execute compile recipes within the clean sandbox environment.
-4.  **Artifact Output**: Finished package tarballs are saved back to `$STRAYLIGHT_BUILDER_ROOT/packages/`.
+3.  **`STRAYLIGHT_BUILDER_OUTPUT_ROOT`**: Defines the destination folder where the compiled package binary tarballs (`.tar.gz`) are written.
+4.  **Container Chroot execution**: Runs `systemd-nspawn -D $STRAYLIGHT_BUILDER_ROOT/sandbox` to execute compile recipes within the clean sandbox environment, bind-mounting the respective directories.
 
 ### Lazy Self-Healing Cache Generation
 

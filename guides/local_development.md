@@ -48,23 +48,25 @@ To compile the `straylight` CLI manager:
 
 ### C. Compiling Packages Locally
 
-You can use the local `straylight` binary to build any package declared in `packages/`:
-1.  Run the build subcommand using sudo (required for chroot/nspawn containment):
+You can use the local `straylight` binary to build packages. The CLI requires three environment variables to define its locations:
+
+*   `STRAYLIGHT_PACKAGES_ROOT`: Location of the package source directory (e.g. `$(pwd)/packages`).
+*   `STRAYLIGHT_BUILDER_ROOT`: Location of the build sandbox and staging workspace (e.g. `$(pwd)/build`).
+*   `STRAYLIGHT_BUILDER_OUTPUT_ROOT`: Location where compiled tarballs are written (e.g. `$(pwd)/build/packages`).
+
+1.  Run the build command using `sudo -E` to preserve these variables:
     ```bash
-    sudo build/straylight build packages/<package-name>
+    STRAYLIGHT_PACKAGES_ROOT="$(pwd)/packages" \
+    STRAYLIGHT_BUILDER_ROOT="$(pwd)/build" \
+    STRAYLIGHT_BUILDER_OUTPUT_ROOT="$(pwd)/build/packages" \
+    sudo -E build/straylight build --pkg <package-name>
     ```
 2.  **What happens under the hood:**
-    *   Straylight checks for an extracted sandbox under `build/sandbox/`.
-    *   If missing, it locates `build/sandbox-root.tgz` and extracts it.
-    *   It mounts the sandbox container, binds the package source folder, and executes the compilation targets.
-    *   Completed package outputs are compiled into `build/packages/`.
+    *   Straylight checks for an extracted sandbox under `STRAYLIGHT_BUILDER_ROOT/sandbox/`.
+    *   If missing, it locates `sandbox-root.tgz` and extracts it.
+    *   It mounts the sandbox container, binds the package source folder and builder workspaces, and executes the compilation targets.
+    *   Completed package outputs are compiled and written directly into `STRAYLIGHT_BUILDER_OUTPUT_ROOT`.
 
-### D. Single-Step Release Build
-
-To run the compile, package, and distribution index ingestion in a single stride:
-```bash
-sudo build/straylight release packages/<package-name>
-```
 
 ---
 
