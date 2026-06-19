@@ -34,7 +34,7 @@ The compilation script compiles all base and builder packages inside the Stage0 
     2.  Filters packages to only those belonging to the `base` and `builder` groups.
     3.  Performs a topological sort on dependencies to establish the correct build order.
     4.  Extracts and compiles each package in `/tmp/build/` using `just build` followed by `just package`.
-    5.  Bundles the staging directories to `.tar.gz` packages saved to `/freeside/build/packages/`.
+    5.  Bundles the staging directories to `.tar.gz` packages saved to `/freeside/build/bootstrap/packages/`.
     6.  Installs the newly compiled package into the container's host prefix `/usr` so later packages in the topological order can build against them.
 
 ### Phase C: Host Rootfs Assembly
@@ -57,7 +57,7 @@ The assembly script runs on the development machine (outside of Docker) to creat
 
 To keep the builder sandbox lightweight and prevent init system or package manager pollution, package recipes organize metadata classifications into three groups inside their manifests:
 
-*   **`base`**: The absolute minimum runtime environment required for system startup and command interpretation (e.g. `base-files`, `musl`, `bash`, `uutils-coreutils`, `ca-certificates`, `openssl`, `curl`, `git`, `gzip`, `zlib`, `ncurses`, `readline`, `python3`, `libffi`).
+*   **`base`**: The absolute minimum runtime environment required for system startup and command interpretation (e.g. `base-files`, `musl`, `bash`, `uutils-coreutils`, `ca-certificates`, `openssl`, `findutils`, `curl`, `git`, `gzip`, `zlib`, `ncurses`, `readline`, `python3`, `libffi`).
 *   **`builder`**: Compilers, linkers, build automation, and compilation-time header environments (e.g. `llvm`, `rust`, `make`, `ninja`, `cmake`, `gettext`, `unzip`, `ccache`, `pkgconf`, `patchelf`).
 *   **`system`**: User-space system management tools, service daemons, and components required for a running Freeside OS but **not** needed during compilation inside the sandbox (e.g. `systemd`, `straylight`, `libarchive`, `libcap`, `libexpat`, `util-linux`, `vim`).
 
