@@ -1,5 +1,11 @@
 # Freeside OS: System Profiles & Package Registry
 
+> [!NOTE]
+> **Future State Specification**
+> System profiles (and the inheritance configuration in `system/profiles.toml`) are part of the planned release orchestrator features and are **not yet implemented**. 
+> 
+> Currently, the system uses **Package Groups** (defined inside each package's `package.manifest`) as a mid-step to classify software. The compilation orchestrator (`straylight`) reads these groups (e.g., `base`, `builder`, `system`) to determine compile order. Once system profiles are implemented, they will define sets of groups mapping to target profiles (e.g. `Server` profile comprising `base` + `system` + `server` groups).
+
 System profiles represent curated package collection baselines. Rather than maintaining static configuration templates in files, profiles are configured compositionally, and then compiled and flattened directly into each content-addressable upstream tree manifest (`trees/<tree_hash>.toml`). This ensures that the baseline dependencies for any profile remain strictly tied to, and validated against, a specific tree generation.
 
 ---
@@ -17,9 +23,9 @@ graph TD
 
 ---
 
-## 2. Workspace Profile Ingestion Flow
+## 2. Workspace Profile Ingestion Flow (Planned)
 
-During a system-wide release build, the compilation coordinator executes the following mapping step:
+During a system-wide release build, the compilation coordinator will execute the following mapping step:
 1.  Parses `system/profiles.toml`.
 2.  Resolves inheritance nodes (e.g., recursive dependencies for `desktop` inherit everything in `server` and `core`).
 3.  Verifies every listed dependency is compiled successfully in the current release batch.
@@ -27,7 +33,7 @@ During a system-wide release build, the compilation coordinator executes the fol
 
 ---
 
-## 3. Profiles Configuration: `system/profiles.toml`
+## 3. Profiles Configuration: `system/profiles.toml` (Planned)
 
 This file uses composition and inheritance to keep profile configurations modular and DRY:
 

@@ -29,20 +29,34 @@ Your local development machine must satisfy the following:
 
 ### A. Building the Bootstrapping Sandbox
 
-To build the self-contained rootfs environment and stage compiler binaries:
-1.  From the workspace root, execute the bootstrap target:
+Freeside OS bootstrapping is a two-stage process:
+
+1.  **Stage 0: Alpine Host Sandbox (One-time Setup)**
+    To build the initial musl-based compiler sandbox core inside a Docker container, execute:
     ```bash
-    just build-bootstrap
+    just bootstrap::build-sandbox
     ```
-2.  This command runs Stage 0 Alpine host container assembly and stages the results.
-3.  Once finished, the output is saved to `build/sandbox-root.tgz`.
+    This command runs Stage 0 Alpine host container assembly and packages the results to `build/bootstrap/sandbox-root.tgz`.
+
+2.  **Stage 0 to Stage 1 Promotion (Manual Step)**
+    Since Straylight expects the sandbox core at the root of the builder output, manually copy the sandbox tarball:
+    ```bash
+    cp build/bootstrap/sandbox-root.tgz build/sandbox-root.tgz
+    ```
+
+3.  **Stage 1: Pure Sandbox Recompilation**
+    To rebuild the base and builder packages inside the isolated Freeside sandbox (discarding Alpine host dependencies and compiling pure Freeside packages):
+    ```bash
+    just sys::build-sandbox   # Or use alias: just build-sandbox
+    ```
+    This compiles the packages inside the sandbox and generates the final, pure `build/sandbox-root.tgz`.
 
 ### B. Compiling the Straylight CLI
 
 To compile the `straylight` CLI manager:
-1.  Execute the build-straylight command:
+1.  Execute the straylight build command:
     ```bash
-    just build-straylight
+    just straylight::build    # Or use alias: just build-straylight
     ```
 2.  This builds the Rust binary under `straylight/` and copies the compiled executable output to `build/straylight`.
 
@@ -74,12 +88,12 @@ You can use the local `straylight` binary to build packages. The CLI requires th
 
 To clean temporary workspaces, Cargo build outputs, and transient build sandboxes:
 ```bash
-just clean
+just sys::clean           # Or use alias: just clean
 ```
 
 To purge compiled user-space packages stored under `build/packages/`:
 ```bash
-just clean-packages
+just pkg::clean           # Or use alias: just clean-packages
 ```
 
 ---

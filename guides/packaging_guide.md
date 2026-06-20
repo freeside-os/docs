@@ -119,7 +119,7 @@ The build recipe is written in the `just` execution syntax and defines how to co
 # zlib package compilation instructions
 
 build:
-    cd zlib-* && ./configure --prefix=/usr --shared && make
+    cd zlib-* && ./configure $CONFIGURE_ARGS && make -j$(nproc)
 
 package:
     cd zlib-* && make DESTDIR="$DESTDIR" install

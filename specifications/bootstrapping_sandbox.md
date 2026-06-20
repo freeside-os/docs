@@ -14,10 +14,10 @@ Bootstrapping is divided into three distinct phases to ensure isolation and repr
 
 ```mermaid
 graph TD
-    A[just build-builder-sandbox] --> B[Docker Build: Alpine Stage0 Host]
+    A[just bootstrap::build-sandbox] --> B[Docker Build: Alpine Stage0 Host]
     B --> C[Docker Run: compile packages in /stage0/]
     C --> D[Host: assemble-sandbox.sh stages package tarballs]
-    D --> E[Host: Tar up to sandbox-root.tgz]
+    D --> E[Host: Tar up to bootstrap/sandbox-root.tgz]
 ```
 
 ### Phase A: Stage0 Host Build Environment (Docker)
@@ -49,7 +49,7 @@ The assembly script runs on the development machine (outside of Docker) to creat
         *   `/lib64` $\rightarrow$ `usr/lib`
     3.  Creates system directories: `/tmp`, `/proc`, `/sys`, `/dev`, `/run`, `/var`, `/etc`, and `/root`.
     4.  Configures essential conveniences like `sh -> bash` and `python -> python3` symlinks.
-    5.  Packs the rootfs into `build/sandbox-root.tgz` preserving file permissions and ownership (requires `sudo`).
+    5.  Packs the rootfs into `build/bootstrap/sandbox-root.tgz` preserving file permissions and ownership (requires `sudo`). This is then manually copied (promoted) to `build/sandbox-root.tgz` to serve as the Stage 1 baseline.
 
 ---
 
@@ -97,10 +97,10 @@ When building or deploying custom source configurations (e.g., items defined und
 To eliminate Alpine Linux host library dependencies and achieve a 100% pure Freeside compilation environment, the system utilizes a multi-stage self-hosting cycle:
 
 ### Stage 0: Alpine Bootstrap (Impure)
-The bootstrap process (`just -f bootstrap/justfile build-builder-sandbox`) builds packages inside the Alpine container. Because Alpine's host compilers are used, some tools (like `clang`, `sed`, `grep`, `gawk`, and `diffutils`) link against Alpine system libraries (e.g., `libstdc++.so.6` or `libpcre2-8.so.0`). To ensure these tools can run inside the initial sandbox, these helper libraries are exported to the initial `sandbox-root-bootstrap.tgz`.
+The bootstrap process (`just bootstrap::build-sandbox`) builds packages inside the Alpine container. Because Alpine's host compilers are used, some tools (like `clang`, `sed`, `grep`, `gawk`, and `diffutils`) link against Alpine system libraries (e.g., `libstdc++.so.6` or `libpcre2-8.so.0`). To ensure these tools can run inside the initial sandbox, these helper libraries are exported to the initial `sandbox-root-bootstrap.tgz` (which is compiled into `build/bootstrap/sandbox-root.tgz` and manually promoted to `build/sandbox-root.tgz`).
 
 ### Stage 1: Sandbox Recompilation (99% Pure)
-When the root coordinator runs `just build-builder-sandbox`, the build directory is cleared, the bootstrap sandbox is extracted, and `straylight` rebuilds all `base` and `builder` packages from source *inside* the isolated sandbox. 
+When the root coordinator runs `just sys::build-sandbox` (or using the alias: `just build-sandbox`), the build directory is cleared, the bootstrap sandbox is extracted, and `straylight` rebuilds all `base` and `builder` packages from source *inside* the isolated sandbox. 
 Since the build runs inside the Freeside sandbox:
 1. Custom packages like `sed`, `grep`, `diffutils`, and `gawk` are compiled using Freeside’s own toolchain with NLS disabled.
 2. The newly compiled packages link only against Freeside's native libraries (such as LLVM's C++ library `libc++.so` instead of GNU's `libstdc++.so.6`).
@@ -111,5 +111,5 @@ To complete the cycle, the recompiled, pure sandbox is promoted to the bootstrap
 ```bash
 cp build/sandbox-root.tgz build/sandbox-root-bootstrap.tgz
 ```
-Running the root coordinator `just build-builder-sandbox` a second time extracts the sandbox from this pure image. The compilation now executes entirely using Freeside-built binaries and compilers, discarding any remaining Alpine bootstrap binaries and ensuring a fully self-hosting, 100% pure distribution.
+Running the root coordinator `just sys::build-sandbox` (or `just build-sandbox`) a second time extracts the sandbox from this pure image. The compilation now executes entirely using Freeside-built binaries and compilers, discarding any remaining Alpine bootstrap binaries and ensuring a fully self-hosting, 100% pure distribution.
 
