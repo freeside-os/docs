@@ -30,6 +30,7 @@ The documentation is organized logically into **Specifications** (architectural 
 *   **[System Architecture](file:///home/dq/Code/freeside/docs/specifications/system_architecture.md)**: Details the filesystem layout, Btrfs subvolumes, OverlayFS overlays, UKI boot protocol, and the transactional Btrfs update and rollback mechanics.
 *   **[Package Management & Deployment](file:///home/dq/Code/freeside/docs/specifications/package_management.md)**: Specifies the Straylight CLI/Daemon model, Unix socket peer authorization, differential package installation (`straylight install-pkg`), the ingestion pipeline, and the Wintermute curator test loop.
 *   **[Bootstrapping & Sandbox](file:///home/dq/Code/freeside/docs/specifications/bootstrapping_sandbox.md)**: Outlines Stage 0/1 compilation phases, topological sorting of packages inside Docker Alpine, host rootfs assembly, and Straylight container chroot execution.
+*   **[Simstim Developer Sandboxes](file:///home/dq/Code/freeside/docs/specifications/simstim_architecture.md)**: Specifies the declarative developer workstation subsystem, directory-based configuration (.simstim), Btrfs-backed snapshot lifecycle phases, host-guest UID/GID mapping, PTY terminal multiplexing, graphics/GPU forwarding, and nested rootless container virtualization.
 
 ### B. Guides
 *   **[Package Packaging Guide](file:///home/dq/Code/freeside/docs/guides/packaging_guide.md)**: A developer's manual on how to write package metadata manifests (`package.manifest` in TOML) and build recipes (`package.justfile` using Just).
