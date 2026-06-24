@@ -87,20 +87,25 @@ Wintermute supports six first-class explicit workflows:
 
 ## 3. Running Wintermute Local Commands
 
-Wintermute commands can be triggered using the Docker sandbox to avoid host contamination:
+Wintermute commands can be triggered locally using `just` targets, or inside the Docker container to avoid host contamination:
 
 ```bash
-# Run a review on a package
+# Run a review on a package via just
+just wintermute run "Review package zlib"
+
+# Trigger an explicit build fix via just
+just wintermute run "Fix package build curl"
+
+# Create/scaffold a new package via just
+just wintermute run "Create package libuv"
+```
+
+To run inside Docker (mounting the host workspace):
+```bash
 docker run -it --rm \
   --user "$(id -u):$(id -g)" \
   -v "/home/dq/Code/freeside:/home/dq/Code/freeside" \
   -w "/home/dq/Code/freeside/wintermute" \
   -e GEMINI_API_KEY="$GEMINI_API_KEY" \
-  wintermute uv run adk run . --message "Review package zlib"
-
-# Trigger an explicit build fix
-wintermute uv run adk run . --message "Fix package build curl"
-
-# Create/scaffold a new package
-wintermute uv run adk run . --message "Create package libuv"
+  wintermute uv run adk run app "Review package zlib"
 ```
