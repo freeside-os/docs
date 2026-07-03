@@ -8,7 +8,7 @@ This guide details the explicit workflows, workflows' triggers, architecture, an
 
 ## 1. Architecture Overview
 
-Wintermute is implemented using the Google ADK and runs a multi-agent cooperative architecture. The system consists of a master workflow coordinator ([agent.py](file:///home/dq/Code/freeside/wintermute/app/agent.py)) that delegates responsibilities to specialized agents:
+Wintermute is implemented using the Google ADK and runs a multi-agent cooperative architecture. The system consists of a master workflow coordinator ([agent.py](../../wintermute/app/agent.py)) that delegates responsibilities to specialized agents:
 
 1. **Triage Agent (`triage_agent`):** Parses user prompts, queries security feeds, and classifies requests into package-specific tasks.
 2. **Recipe Refiner Agent (`refiner_agent`):** Modifies package manifest and justfile recipes to enforce Freeside standard structures (e.g. `$DESTDIR` prefix paths, strict permissions, UsrMerge).
@@ -22,7 +22,7 @@ Wintermute supports six first-class explicit workflows:
 
 ### A. Create Package (`create`)
 * **Trigger keyword:** `create`, `scaffold`, `scratch`, `new`
-* **Implementation:** [create.py](file:///home/dq/Code/freeside/wintermute/app/workflows/create.py)
+* **Implementation:** [create.py](../../wintermute/app/workflows/create.py)
 * **Description:** Used to build a new package recipe from scratch when there is no existing Arch Linux recipe or when starting clean.
 * **Flow:**
   1. Activates a `scaffolder` agent to search for the package details online via Google Search.
@@ -33,7 +33,7 @@ Wintermute supports six first-class explicit workflows:
 
 ### B. Fix Package Build (`fix`)
 * **Trigger keyword:** `fix`, `patch`, `debug`, `repair`
-* **Implementation:** [fix.py](file:///home/dq/Code/freeside/wintermute/app/workflows/fix.py)
+* **Implementation:** [fix.py](../../wintermute/app/workflows/fix.py)
 * **Description:** Targets an existing package whose compilation fails in the container sandbox. It loops automatically to diagnose, apply compiler flag workarounds/patches, and ensure compilation passes.
 * **Flow:**
   1. Activates the `Build & Fixer Agent` to perform an initial build in the sandbox.
@@ -48,7 +48,7 @@ Wintermute supports six first-class explicit workflows:
 
 ### C. Import Package (`import`)
 * **Trigger keyword:** `import`
-* **Implementation:** [import_pkg.py](file:///home/dq/Code/freeside/wintermute/app/workflows/import_pkg.py)
+* **Implementation:** [import_pkg.py](../../wintermute/app/workflows/import_pkg.py)
 * **Description:** Imports an Arch Linux `PKGBUILD` and converts it automatically to a Freeside package recipe.
 * **Flow:**
   1. Runs `import_pkgbuild` to query the Arch Linux GitLab repository and translate PKGBUILD properties.
@@ -57,7 +57,7 @@ Wintermute supports six first-class explicit workflows:
 
 ### D. Upgrade Package (`upgrade`)
 * **Trigger keyword:** `upgrade`
-* **Implementation:** [upgrade.py](file:///home/dq/Code/freeside/wintermute/app/workflows/upgrade.py)
+* **Implementation:** [upgrade.py](../../wintermute/app/workflows/upgrade.py)
 * **Description:** Upgrades package versions, adjusts source archive URLs, and rebuilds them.
 * **Flow:**
   1. Bumps version and downloads the new source archive using `upgrade_package_version`.
@@ -66,7 +66,7 @@ Wintermute supports six first-class explicit workflows:
 
 ### E. CI Review & Compliance (`review`)
 * **Trigger keyword:** `review`, `check`, `validate`, `enforce`
-* **Implementation:** [review.py](file:///home/dq/Code/freeside/wintermute/app/workflows/review.py)
+* **Implementation:** [review.py](../../wintermute/app/workflows/review.py)
 * **Description:** A quality gate that runs validation on one or all packages in the workspace.
 * **Flow:**
   1. Validates that all defined dependencies actually exist in the local workspace workspace (rejects package if missing dependencies are found).
@@ -75,7 +75,7 @@ Wintermute supports six first-class explicit workflows:
 
 ### F. Security Audit (`security_audit`)
 * **Trigger keyword:** `security`, `cve`, `audit`
-* **Implementation:** [security.py](file:///home/dq/Code/freeside/wintermute/app/workflows/security.py)
+* **Implementation:** [security.py](../../wintermute/app/workflows/security.py)
 * **Description:** Scans installed packages against external CVE feeds and auto-upgrades/patches them.
 * **Flow:**
   1. Pulls the vulnerability list using `query_security_feeds`.
@@ -91,21 +91,27 @@ Wintermute commands can be triggered locally using `just` targets, or inside the
 
 ```bash
 # Run a review on a package via just
-just wintermute run "Review package zlib"
+just wintermute::run "Review package zlib"
 
 # Trigger an explicit build fix via just
-just wintermute run "Fix package build curl"
+just wintermute::run "Fix package build curl"
 
 # Create/scaffold a new package via just
-just wintermute run "Create package libuv"
+just wintermute::run "Create package libuv"
+```
+
+Wintermute also supports a non-interactive CLI mode for scripting and automation:
+```bash
+just wintermute::cli <workflow> <args>
+# Example: just wintermute::cli review zlib
 ```
 
 To run inside Docker (mounting the host workspace):
 ```bash
 docker run -it --rm \
   --user "$(id -u):$(id -g)" \
-  -v "/home/dq/Code/freeside:/home/dq/Code/freeside" \
-  -w "/home/dq/Code/freeside/wintermute" \
+  -v "$FREESIDE_ROOT:$FREESIDE_ROOT" \
+  -w "$FREESIDE_ROOT/wintermute" \
   -e GEMINI_API_KEY="$GEMINI_API_KEY" \
   wintermute uv run adk run app "Review package zlib"
 ```

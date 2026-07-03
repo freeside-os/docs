@@ -12,8 +12,9 @@ Every package lives in its own subdirectory under the global `packages/` directo
 packages/<package-name>/
 ├── package.manifest     # Package metadata, sources, and dependencies (TOML)
 ├── package.justfile     # Build and installation recipes (Justfile)
-├── files/               # (Optional) Config templates, systemd units, etc.
-└── patches/             # (Optional) Source patches
+├── system.conf          # Local files go directly in the package root
+├── 0005-musl.patch      # Patches also go directly in the package root
+└── ...
 ```
 
 ---
@@ -64,7 +65,7 @@ Freeside supports multiple sources per package. They are downloaded or copied in
     url = "https://ftp.gnu.org/gnu/bash/bash-5.2.21.tar.gz"
     checksum = { algorithm = "sha256", value = "c8e31bdc59b69aaffc5b36509905ba3e5cbb12747091d27b4b977f078560d5b8" }
     ```
-*   **Local File Source:** Copies a file from the package directory itself (e.g. patches, configs).
+*   **Local File Source:** Copies a file from the package directory itself (e.g. patches, configs). These files must be placed directly in the package directory (not inside a subfolder) so that the build orchestrator copies them to the sandbox build workspace.
     ```toml
     [[sources]]
     file = "etc.mount"

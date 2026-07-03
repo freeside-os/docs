@@ -33,15 +33,34 @@ graph TD
 
 ## 2. Prerequisites & Setup
 
-Ensure you have the following host dependencies installed:
-*   `qemu-system-x86_64` (for booting the virtual machine)
-*   `OVMF` (Open Virtual Machine Firmware for UEFI boot, typically located at `/usr/share/ovmf/x64/OVMF.4m.fd` on Linux hosts)
+### Host Build Dependencies
+
+The ISO assembly runs on the host (not inside the Straylight sandbox) and requires the following tools:
+
+| Tool | Arch Package | Purpose |
+|---|---|---|
+| `mkfs.vfat` | `dosfstools` | Creates the FAT filesystem for the EFI boot image |
+| `mmd`, `mcopy` | `mtools` | Populates the FAT image without loopback mounts |
+| `mksquashfs` | `squashfs-tools` | Compresses the root filesystem into SquashFS |
+| `xorriso` | `libisoburn` | Compiles the final ISO 9660 image with UEFI boot |
+
+### Host Runtime Dependencies
+
+| Tool | Arch Package | Purpose |
+|---|---|---|
+| `qemu-system-x86_64` | `qemu-full` | UEFI virtual machine for booting the ISO |
+| OVMF firmware | `edk2-ovmf` | UEFI firmware image (typically at `/usr/share/ovmf/x64/OVMF.4m.fd`) |
+
+Install all dependencies on Arch Linux:
+```bash
+sudo pacman -S dosfstools mtools squashfs-tools libisoburn qemu-full edk2-ovmf
+```
 
 ---
 
 ## 3. How to Build the Live Image
 
-Building the live image requires compiling all packages in the `base`, `builder`, and `system` groups so that their compiled tarballs are cached, then compiling the final `live-image` bootable package group.
+Building the live image requires compiling all packages in the `base`, `system`, and `linux` groups so that their compiled tarballs are cached, then assembling the final bootable ISO.
 
 ### Step 1: Ensure Sandbox Environment
 Ensure that the Musl sandboxed container environment is bootstrapped:
@@ -49,50 +68,53 @@ Ensure that the Musl sandboxed container environment is bootstrapped:
 just bootstrap::build-sandbox
 ```
 
-### Step 2: Compile All Package Groups
-Compile all package groups to populate the local cache (`build/packages/`):
+### Step 2: Compile Package Groups
+Compile the `base`, `system`, and `linux` package groups to populate the local tarball cache (`build/packages/`):
 ```bash
-just build-package-group base
-just build-package-group builder
-just build-package-group system
+just pkg::build-group base
+just pkg::build-group system
+just pkg::build-group linux
 ```
 
-### Step 3: Build the Live Image Group
-Compile the final bootable live ISO package group:
+### Step 3: Build the Live ISO
+Assemble the final bootable ISO:
 ```bash
-just build-package-group live-image
+just live::build
 ```
-This process:
-1. Resolves package dependency lists.
-2. Unpacks all cached package tarballs to a temporary SquashFS staging root.
-3. Places the bootstrap environment (`sandbox-root.tgz`) and package tarballs inside `/var/cache/freeside/` within the SquashFS tree.
-4. Compresses the root tree into a single `rootfs.squashfs` file using `mksquashfs` and Zstd compression.
-5. Invokes `xorriso` with UEFI parameters and `-iso-level 3` (to allow files larger than 4 GiB) to output the hybrid ISO.
+
+This command:
+1. Compiles any missing `live-image` tool dependencies (`mtools`, `xorriso`, `squashfs-tools`) inside the sandbox, so the host has the required ISO assembly utilities.
+2. Runs `packages/fsimage.py` on the host, which:
+   - Resolves the topologically-sorted package list for the `base` and `system` groups.
+   - Extracts each package's compiled tarball into a SquashFS staging root (with UsrMerge symlinks).
+   - Places the bootstrap environment (`sandbox-root.tgz`) and package tarballs inside `/var/cache/freeside/` within the SquashFS tree.
+   - Compresses the root tree into `rootfs.squashfs` using `mksquashfs` with Zstd compression.
+   - Assembles a 70 MB UEFI FAT boot image with systemd-boot, the kernel, and the initramfs.
+   - Invokes `xorriso` with UEFI parameters and `-iso-level 3` (to allow files larger than 4 GiB) to output the hybrid ISO at `build/freeside-live.iso`.
+
+> **Note:** The SquashFS rootfs is always built fresh from package tarballs; caching is disabled to prevent stale package configurations or systemd unit changes from being silently bypassed.
 
 ---
 
-## 4. Extracting and Running the Live Image
-
-### Extracting the ISO
-Once compiled, extract the final ISO from the `live-image` package tarball to the host `build/` directory:
-```bash
-tar -xzf build/packages/live-image-1.0.0-1.tar.gz -C build/ ./freeside-live.iso
-```
+## 4. Running the Live Image
 
 ### Running via QEMU
-Run the live system in QEMU using the provided helper script:
+Boot the live ISO directly with the provided just target:
 ```bash
-./run_iso.sh
+just live::run
 ```
 
-The script runs QEMU with KVM acceleration, allocates 2 GB of memory, loads the OVMF UEFI firmware, mounts the generated live ISO, and redirects the console output to the terminal:
+This runs QEMU with KVM acceleration, 2 GB of memory, OVMF UEFI firmware, and the ISO attached as a SATA/AHCI hard disk (required for DMA-based loading of the large initramfs). The serial console is redirected to the terminal:
 ```bash
-#!/usr/bin/env bash
 qemu-system-x86_64 \
     -enable-kvm -cpu host -m 2G \
     -bios /usr/share/ovmf/x64/OVMF.4m.fd \
-    -cdrom build/freeside-live.iso \
+    -device ahci,id=sata \
+    -drive file=build/freeside-live.iso,id=livecd,format=raw,if=none \
+    -device ide-hd,bus=sata.0,drive=livecd \
     -nographic -serial mon:stdio
 ```
+
+> **Note:** The ISO is attached as a SATA hard disk (`ide-hd`) rather than an IDE CD-ROM (`-cdrom`). This is required because the AHCI driver (`CONFIG_SATA_AHCI=y`) is built into the kernel, while the IDE/ATAPI CD-ROM drivers are compiled as modules not present in the initramfs. SATA also enables DMA for significantly faster boot file loading.
 
 To exit QEMU, use the console shortcut: `Ctrl-A` then press `x`.

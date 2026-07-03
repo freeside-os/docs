@@ -100,11 +100,16 @@ just pkg::clean           # Or use alias: just clean-packages
 
 ## 4. Boot Emulation & VM Verification
 
-To simulate boot-loading and systemd target activation before deployment:
-1.  Ensure you have `qemu-system-x86_64` and `swtpm` installed on your development machine.
-2.  Run the boot emulator suite:
+To build and boot the live system image in a QEMU virtual machine:
+1.  Ensure you have `qemu-system-x86_64` and `edk2-ovmf` (UEFI firmware) installed on your development machine.
+2.  Build the live ISO:
     ```bash
-    # (Optional) Invokes QEMU micro-VM loading candidate UKI
-    just test-boot
+    just live::build
     ```
-3.  This validates that OverlayFS mounts correctly, the `/usr` subvolume is read-only, and systemd reaches `multi-user.target` with zero failures.
+3.  Boot the ISO in QEMU:
+    ```bash
+    just live::run
+    ```
+4.  This validates that OverlayFS mounts correctly, the `/usr` filesystem is read-only, and systemd reaches `multi-user.target` with zero failures.
+
+For more details on the live image architecture and boot process, see the [Live Image Build & Boot Guide](live_image_build.md).
