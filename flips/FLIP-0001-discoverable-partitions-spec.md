@@ -2,8 +2,10 @@
 flip: 0001
 title: "Zero-Config Boot via systemd Discoverable Partitions Specification (DPS)"
 authors: ["Lead Engineer & Freeside OS Core Team"]
-status: Proposed
+status: proposed
 created: 2026-07-28
+type: architectural
+component: installer
 ---
 
 ## Summary
