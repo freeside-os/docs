@@ -1,97 +1,84 @@
-# Wintermute Packaging Agent Guide
+# Wintermute Platform Guide
 
-Wintermute is the autonomous package orchestration and maintenance agent for Freeside OS. It is designed to automate the import, creation, refinement, building, and validation of user-space packages under the `packages/` workspace repository.
-
-This guide details the explicit workflows, workflows' triggers, architecture, and developer operations for Wintermute.
+Wintermute is the autonomous agentic development platform and harness for Freeside OS. It automates development, testing, maintenance, and release workflows across all Freeside components—including `packages`, `straylight`, `installer`, `simstim`, `freesidectl`, and `fstools`.
 
 ---
 
-## 1. Architecture Overview
+## 1. Platform Architecture
 
-Wintermute is implemented using the Google ADK and utilizes a clean architecture consisting of three layers:
+Wintermute is built on the Google ADK and structured into clean, modular layers:
 
-1.  **CLI Layer ([cli.py](../../wintermute/app/cli.py)):** Built with Click. Handles terminal argument parsing, input presence checks, confirmation prompts, formatting colors (`click.style`), and interactive CLI execution loops.
-2.  **Use Cases Layer ([use_cases.py](../../wintermute/app/use_cases.py)):** Encapsulates core business logic as async generators that yield progress tuples (`(type, message)`) upwards, making them fully decoupled from styling and terminal output constraints.
-3.  **Agents and Workflows Layer ([workflows/](../../wintermute/app/agents/workflows/)):** Defines the cooperative Gemini-backed sub-agents and ADK workflows that execute compilation, auto-patching, and metadata refactoring.
-
-### Cooperating Sub-Agents
-*   **Recipe Refiner Agent (`refiner_agent`):** Modifies package manifest and justfile recipes to enforce Freeside standard structures (e.g. `$DESTDIR` prefix paths, strict permissions, UsrMerge).
-*   **Build & Fixer Agent (`builder_agent`):** Manages the sandboxed container compilation loops, interprets build errors, applies source patches, and records upgrade notes.
-*   **Scaffold Agent (`scaffold_agent`):** Searches online for package details and scaffolder templates when building a package from scratch.
+1. **CLI & Manifest Runner ([cli.py](wintermute/app/cli.py)):** Built with Click. Provides component subcommands (`wintermute cli <domain> <workflow>`) and the unified Kubernetes-style manifest runner (`wintermute run <manifest.yaml>`).
+2. **Engine Runtime ([engine.py](wintermute/app/engine.py)):** Manages `ExecutionSpec` dispatch, domain provider resolution, context loading, and execution events.
+3. **Dynamic Domain Registry ([registry_domains.py](wintermute/app/registry_domains.py)):** Autodiscovers domain plugins under `app/domains/` and dynamic setuptools entrypoints. Validates requested workflows at runtime.
+4. **Namespaced Tool & Skill Library ([registry.py](wintermute/app/registry.py)):** Stores tools and skills indexed by namespace (e.g. `straylight:*`, `packages:*`, `installer:*`).
+5. **Rust Diagnostic Parser ([rust_diagnostics.py](wintermute/app/parsers/rust_diagnostics.py)):** Parses structured `cargo check` and `cargo clippy` JSON output streams into LLM context.
 
 ---
 
-## 2. Explicit Workflows: Graph vs. Dynamic
+## 2. Platform Component Domains
 
-Wintermute organizes its agent execution pipelines into two types of ADK workflows depending on their complexity and branching requirements:
+Wintermute dynamically discovers and supports component domains:
 
-### A. Declarative Graph Workflows
-Graph workflows inherit from `google.adk.workflow.Workflow` and declare their step transitions deterministically as edges in `model_post_init`. They are used for pipeline routines that execute sequentially:
-
-#### 1. Create Package (`CreateWorkflow`)
-*   **Implementation:** [create.py](../../wintermute/app/agents/workflows/create.py)
-*   **Trigger Command:** `just wintermute cli create <pkg_name>`
-*   **Flow:**
-    1.  Activates a `scaffold_agent` to search online for source metadata and compute release archive checksums.
-    2.  Scaffolds schema-compliant templates for `package.manifest` and `package.justfile`.
-    3.  Runs the `Recipe Refiner Agent` to sanitize instructions and directories.
-    4.  Runs the sandbox compilation loop via the `Build & Fixer Agent`.
-
-#### 2. Import Package (`ImportWorkflow`)
-*   **Implementation:** [import_pkg.py](../../wintermute/app/agents/workflows/import_pkg.py)
-*   **Trigger Command:** `just wintermute cli import <pkg_name>`
-*   **Flow:**
-    1.  Downloads raw `PKGBUILD` files from the Arch Linux packaging repository.
-    2.  Translates PKGBUILD instructions to Freeside package structure.
-    3.  Passes converted files to the refiner and compiles them inside the sandbox.
+| Domain | Subsystem | Supported Workflows |
+| :--- | :--- | :--- |
+| **`packages`** | Packages repository | `create`, `import`, `fix`, `upgrade`, `review`, `security_audit` |
+| **`straylight`** | Package manager CLI & daemon | `check`, `clippy_fix`, `audit_rpc`, `benchmark` |
+| **`installer`** | Freeside TUI installer | `check`, `qemu_boot_test`, `dps_uuid_audit` |
+| **`simstim`** | Developer sandboxes | `provision`, `snapshot_verify` |
+| **`freesidectl`** | Unified system control CLI | `scaffold_subcommand`, `completion_sync` |
+| **`fstools`** | Packaging & indexing scripts | `schema_validate`, `caidx_audit` |
 
 ---
 
-### B. Imperative Dynamic Workflows
-Dynamic workflows inherit from `google.adk.agents.BaseAgent` and override `_run_async_impl` to yield events dynamically using imperative python logic. This is necessary for workflows with conditional loops, user retries, or complex state variations:
+## 3. Declarative Manifest Execution (`wintermute run`)
 
-#### 1. Fix Package Build (`FixWorkflow`)
-*   **Implementation:** [fix.py](../../wintermute/app/agents/workflows/fix.py)
-*   **Trigger Command:** `just wintermute cli fix <pkg_name>`
-*   **Flow:**
-    1.  Performs an initial sandboxed compilation in the container.
-    2.  If compilation fails, it retrieves the build log and inspects errors against its failure signature lookup table:
-        *   *Redefinition of Inline Functions:* Injects `CFLAGS="-g -O2 -fgnu89-inline"` for legacy GCC code.
-        *   *Missing `argp`:* Adds `argp-standalone` to build dependencies and appends `LIBS="-largp"`/`LDFLAGS="-largp"`.
-        *   *Missing documentation tools:* Injects variables like `MAKEINFO=true` to bypass doc generators.
-    3.  Applies the corresponding patch or environment injection.
-    4.  If compilation continues to fail, it exits with `compilation_failed` to let the Click CLI handle the operator suggestion prompt loop.
+Wintermute supports executing Kubernetes-style YAML manifests containing `apiVersion`, `kind`, `metadata`, and `spec`.
 
-#### 2. Upgrade Package (`UpgradeWorkflow`)
-*   **Implementation:** [upgrade.py](../../wintermute/app/agents/workflows/upgrade.py)
-*   **Trigger Command:** `just wintermute cli upgrade <pkg_name>`
-*   **Flow:**
-    1.  Looks up the latest upstream version using the `upstream` module (fast Arch packages API search with Gemini search-grounding fallback).
-    2.  Bumps version, updates hashes, and rebuilds inside the sandbox.
+### A. `kind: Workflow` (Procedural Execution Blueprint)
+```yaml
+apiVersion: "wintermute.freeside.os/v1"
+kind: Workflow
+metadata:
+  name: "straylight-check"
+  description: "Runs cargo check on straylight"
+spec:
+  domain: "straylight"
+  steps:
+    - name: "check-straylight"
+      domain: "straylight"
+      workflow: "check"
+```
 
-#### 3. Compliance Review (`ReviewWorkflow`)
-*   **Implementation:** [review.py](../../wintermute/app/agents/workflows/review.py)
-*   **Trigger Command:** Used by checks to inspect compliance.
-*   **Flow:**
-    1.  Validates that all defined dependencies exist in the workspace.
-    2.  Checks for required files (e.g., README.md, package.manifest, package.justfile) and triggers automated compliance fixes.
+### B. `kind: EventHandler` (Long-Running Event Listener)
+```yaml
+apiVersion: "wintermute.freeside.os/v1"
+kind: EventHandler
+metadata:
+  name: "github-listener"
+spec:
+  source:
+    type: "webhook"
+    module: "wintermute.sources.github_webhooks"
+  handlers:
+    - event: "issues.opened"
+      workflowRef: ".wintermute/workflows/triage-issue.yaml"
+```
 
 ---
 
-## 3. Running Wintermute Commands
-
-You can run Wintermute commands using the local Click interface:
+## 4. Operational Commands
 
 ```bash
-# Enter the interactive prompt menu:
+# Run a declarative YAML manifest:
+just wintermute run .wintermute/workflows/straylight-check.yaml
+
+# Enter interactive CLI menu:
 just wintermute cli
 
 # Run check on all packages:
 just wintermute cli check --all
 
-# Create a package skeleton and compile:
-just wintermute cli create zlib --group extra --version 1.3.1
-
-# Fix a package sandboxed compilation:
+# Run fix on a package build:
 just wintermute cli fix zlib
 ```
