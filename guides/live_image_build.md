@@ -90,7 +90,7 @@ This command:
    - Places the bootstrap environment (`sandbox-root.tgz`) and package tarballs inside `/var/cache/freeside/` within the SquashFS tree.
    - Compresses the root tree into `rootfs.squashfs` using `mksquashfs` with Zstd compression.
    - Assembles a 70 MB UEFI FAT boot image with systemd-boot, the kernel, and the initramfs.
-   - Invokes `xorriso` with UEFI parameters and `-iso-level 3` (to allow files larger than 4 GiB) to output the hybrid ISO at `build/freeside-live.iso`.
+   - Invokes `xorriso` with UEFI parameters and `-iso-level 3` (to allow files larger than 4 GiB) to output the hybrid image at `build/freeside-iso.img`.
 
 > **Note:** The SquashFS rootfs is always built fresh from package tarballs; caching is disabled to prevent stale package configurations or systemd unit changes from being silently bypassed.
 
@@ -104,17 +104,28 @@ Boot the live ISO directly with the provided just target:
 just live::run
 ```
 
-This runs QEMU with KVM acceleration, 2 GB of memory, OVMF UEFI firmware, and the ISO attached as a SATA/AHCI hard disk (required for DMA-based loading of the large initramfs). The serial console is redirected to the terminal:
+This runs QEMU with KVM acceleration, 2 GB of memory, and OVMF UEFI firmware. It boots from the live image (`build/freeside-iso.img`) emulating a USB thumbdrive, and attaches a target virtual disk (`build/disk.img`) as the primary SATA hard drive where the system will be installed. The serial console is redirected to the terminal:
 ```bash
 qemu-system-x86_64 \
     -enable-kvm -cpu host -m 2G \
     -bios /usr/share/ovmf/x64/OVMF.4m.fd \
     -device ahci,id=sata \
-    -drive file=build/freeside-live.iso,id=livecd,format=raw,if=none \
-    -device ide-hd,bus=sata.0,drive=livecd \
+    -drive file=build/disk.img,id=primary_disk,format=raw,if=none \
+    -device ide-hd,bus=sata.0,drive=primary_disk,bootindex=2 \
+    -device qemu-xhci,id=xhci \
+    -drive file=build/freeside-iso.img,id=usbkey,format=raw,if=none \
+    -device usb-storage,bus=xhci.0,drive=usbkey,removable=on,bootindex=1 \
     -nographic -serial mon:stdio
 ```
 
-> **Note:** The ISO is attached as a SATA hard disk (`ide-hd`) rather than an IDE CD-ROM (`-cdrom`). This is required because the AHCI driver (`CONFIG_SATA_AHCI=y`) is built into the kernel, while the IDE/ATAPI CD-ROM drivers are compiled as modules not present in the initramfs. SATA also enables DMA for significantly faster boot file loading.
+> **Note:** The target disk is attached as a SATA hard disk (`ide-hd`), which will be detected as `/dev/sda` for installation, while the USB image bootindex is configured to boot first.
+
+### Booting the Installed System
+After completing the installation on the virtual disk image (`build/disk.img`), boot directly into the newly installed operating system (bypassing the live USB installer):
+```bash
+just live::boot-system
+```
+
+This launches QEMU configured with `bootindex=1` for `build/disk.img`.
 
 To exit QEMU, use the console shortcut: `Ctrl-A` then press `x`.

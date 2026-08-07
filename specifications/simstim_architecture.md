@@ -8,7 +8,7 @@ Instead of silently polluting the host or forcing global runtime overrides, Sims
 
 Freeside’s bare-metal host is engineered with a pure musl-libc toolchain to keep the base system stateless, highly stable, and free from corporate dynamic library bloat. However, modern development workflows present a major friction point:
 
-* **Hardcoded Linkers:** Standard upstream precompiled language runtimes (Node.js, Python, Rust, Go) downloaded by package managers like mise or asdf are statically linked against glibc pathways (e.g., expecting /lib64/ld-linux-x86-64.so.2 to exist).  
+* **Hardcoded Linkers:** Standard upstream precompiled language runtimes (Node.js, Python, Rust, Go) downloaded by package managers like mise are statically linked against glibc pathways (e.g., expecting /lib64/ld-linux-x86-64.so.2 to exist).  
 * **The Crash:** Attempting to execute these binaries on a pure musl host results in an immediate crash.  
 * **The Solution:** Simstim isolates these workflows within native, containerized environments. It bind-mounts your project code and home directory so you can compile and execute software exactly as you would on a standard glibc distribution, while keeping your bare-metal OS completely untouched.
 
