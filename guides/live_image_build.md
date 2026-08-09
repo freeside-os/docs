@@ -128,4 +128,12 @@ just live::boot-system
 
 This launches QEMU configured with `bootindex=1` for `build/disk.img`.
 
+### Updating UKI on Target Disk
+To update the Unified Kernel Image (kernel, initramfs, cmdline) on the installed virtual disk image (`build/disk.img`) without re-running the full installer:
+```bash
+just live::update-uki
+```
+
+This extracts the latest `linux-uki` package tarball from `build/packages/` and updates the UKI binary inside `build/disk.img`'s EFI System Partition (`::EFI/Linux/freeside.efi`).
+
 To exit QEMU, use the console shortcut: `Ctrl-A` then press `x`.
