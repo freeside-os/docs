@@ -95,6 +95,16 @@ You can use the local `straylight` binary to build packages. The CLI requires th
     *   It mounts the sandbox container, binds the package source folder and builder workspaces, and executes the compilation targets.
     *   Completed package outputs are compiled and written directly into `STRAYLIGHT_BUILDER_OUTPUT_ROOT`.
 
+### D. Running the Wintermute AI Agent
+
+To use Wintermute from the workspace root, copy [.env-example](../../.env-example) to `.env` at the root directory, add your `GEMINI_API_KEY` (or configure Vertex AI / local models in [wintermute.toml](../../wintermute/wintermute.toml)), and run:
+```bash
+cp .env-example .env
+just wintermute chat
+just wintermute exec "Patch CVE in zlib" --domain packages --target zlib
+```
+See the [Wintermute Platform Guide](wintermute.md) for full CLI options, REPL slash commands, and pipeline details.
+
 
 ---
 

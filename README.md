@@ -37,14 +37,14 @@ The documentation is organized logically into **Specifications** (architectural 
 *   **[Package Management & Deployment](specifications/package_management.md)**: Specifies the Straylight CLI/Daemon model, Unix socket peer authorization, differential package installation (`straylight install-pkg`), the ingestion pipeline, and the Wintermute curator test loop.
 *   **[Bootstrapping & Sandbox](specifications/bootstrapping_sandbox.md)**: Outlines Stage 0/1 compilation phases, topological sorting of packages inside Docker Alpine, host rootfs assembly (`fstools sandbox build`), and Straylight container execution.
 *   **[Simstim Developer Sandboxes](specifications/simstim_architecture.md)**: Specifies the declarative developer workstation subsystem, directory-based configuration (`.simstim`), Btrfs-backed snapshot lifecycle phases, host-guest UID/GID mapping, PTY terminal multiplexing, graphics/GPU forwarding, and nested rootless container virtualization.
-*   **[Wintermute Architecture](specifications/wintermute_architecture.md)**: Specifies the multi-domain agentic engine, `ExecutionSpec`, `DomainRegistry`, and Kubernetes-style declarative workflow manifests.
+*   **[Wintermute Architecture](specifications/wintermute_architecture.md)**: Specifies the Pragmatic Hexagonal architecture, Google Antigravity SDK policies/hooks, stage-gate pipeline engine, `just` AST tool synthesis, and unified SQLite + hybrid memory storage.
 
 ### B. Guides
 *   **[Package Packaging Guide](guides/packaging_guide.md)**: A developer's manual on how to write package metadata manifests (`package.manifest` in TOML) and build recipes (`package.justfile` using Just).
 *   **[Local Development Guide](guides/local_development.md)**: Explains workspace checkouts, compiling the bootstrap sandbox, building `straylight`, `fstools`, and `installer`, building packages locally, running subproject test suites, and booting in QEMU.
 *   **[Live Image Build & Boot Guide](guides/live_image_build.md)**: Details building the hybrid SquashFS Live ISO via `fstools image build` (`just live::build`) and booting/installing in QEMU (`just live::run`, `just live::boot-system`, `just live::update-uki`).
 *   **[Customizing Early Userspace (Initramfs & UKI)](guides/customizing_initrd.md)**: Explains how `fstools initrd` constructs hermetic CPIO archives and how to customize early boot packages and UKIs.
-*   **[Wintermute Platform Guide](guides/wintermute.md)**: Operational guide for running Wintermute CLI workflows and declarative YAML manifests.
+*   **[Wintermute Platform Guide](guides/wintermute.md)**: Operational guide for configuring `.env`, running interactive REPL (`just wintermute chat`) and non-interactive `exec` workflows, and inspecting pipelines, pricing, and hybrid memory.
 
 ### C. Reference
 *   **[System Profiles & Package Registry](reference/profiles_registry.md)**: Maps profile inheritance (`bootstrap` -> `builder` -> `server` -> `desktop`) and catalog lists of packages per group.
