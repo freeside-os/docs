@@ -8,15 +8,15 @@ Wintermute is the autonomous agentic development platform and harness for Freesi
 
 Wintermute follows a strict hexagonal architecture inside [wintermute/app/](../../wintermute/app):
 
-1. **Domain ([wintermute/app/domain/](../../wintermute/app/domain)):** Pure core entities (`Task`, `WorkUnit`, `SubagentRun`, `PipelineTemplate`, `StageSpec`, `KnowledgeEntry`) and token/USD cost calculators (`cost.py`).
+1. **Domain ([wintermute/app/domain/](../../wintermute/app/domain)):** Pure core entities (`Task`, `WorkUnit`, `SubagentRun`, `PipelineTemplate`, `StageSpec`, `KnowledgeEntry`), token/USD cost calculators (`cost.py`), and diagnostic-preserving output/diff compaction (`text_compaction.py`).
 2. **Application Services & Ports ([wintermute/app/application/](../../wintermute/app/application)):**
-   - **Pluggable Pipeline Engine ([pipeline.py](../../wintermute/app/application/pipeline.py)):** Executes declarative stage-gate pipelines with SDK `@hooks.stop` gates and pre-commit verification enforcement.
-   - **Single-Agent & Swarm Router ([single_agent_service.py](../../wintermute/app/application/single_agent_service.py)):** Routes focused tasks via Fast-Path directly to execution, or escalates multi-domain/complex tasks through `tech_lead` `WorkUnit` decomposition.
+   - **Pluggable Pipeline Engine ([pipeline.py](../../wintermute/app/application/pipeline.py)):** Executes declarative stage-gate pipelines with isolated per-stage turns, complexity-scaled memory priming, SDK `@hooks.stop` gates, and pre-commit verification enforcement.
+   - **Single-Agent & Swarm Router ([single_agent_service.py](../../wintermute/app/application/single_agent_service.py)):** Routes user turns through `coordinator` (`hydrogen`, `low` thinking) for conversational Q&A, single-unit `dispatch_work_unit(..., fast_path=True)`, or context gathering + `escalate_to_tech_lead` handoff to `tech_lead` (`argon`, `medium` thinking for decomposition; `high` thinking for stage-gate failure recovery). Explicit `--fast-path` / `fast_path:` skips orchestrator turns.
    - **Cost Controller ([cost_service.py](../../wintermute/app/application/cost_service.py)):** Enforces task and daily USD budgets with pause/top-up resumption (`PAUSED_BUDGET`).
    - **Knowledge Service ([knowledge_service.py](../../wintermute/app/application/knowledge_service.py)):** Provides context priming, explicit/automatic note capture, and target consolidation.
 3. **Outbound Adapters ([wintermute/app/adapters/outbound/](../../wintermute/app/adapters/outbound)):**
-   - **Antigravity SDK Harness ([antigravity_harness.py](../../wintermute/app/adapters/outbound/antigravity_harness.py)):** Maps role definitions to `LocalAgentConfig`, `LocalOpenAIAgentConfig`, or `LiteRTAgentConfig` with exact allowlist policies, raw build-command guards, subagent wiring, `@hooks.pre_tool_call_decide` worktree materialization, `@hooks.on_interaction`, and session continuation (`conversation_id`).
-   - **Just AST Synthesizer ([just_synthesizer.py](../../wintermute/app/adapters/outbound/just_synthesizer.py)):** Parses `just --dump --dump-format json` into typed Python `just_*` tools scoped per role and domain, serialized by per-recipe concurrency semaphores (`build_locks`).
+   - **Antigravity SDK Harness ([antigravity_harness.py](../../wintermute/app/adapters/outbound/antigravity_harness.py)):** Maps role definitions to `LocalAgentConfig`, `LocalOpenAIAgentConfig`, or `LiteRTAgentConfig` with per-role `thinking_level`, `CompactionConfig` (`compaction_token_threshold`), deterministic tool/skill ordering, exact allowlist policies, raw build-command guards, subagent wiring, `@hooks.pre_tool_call_decide` worktree materialization, `@hooks.on_interaction`, and session continuation (`conversation_id`).
+   - **Just AST Synthesizer ([just_synthesizer.py](../../wintermute/app/adapters/outbound/just_synthesizer.py)):** Parses `just --dump --dump-format json` into typed Python `just_*` tools scoped per role and domain (with output compaction and per-recipe `build_locks`), plus `dispatch_work_unit` and `escalate_to_tech_lead`.
    - **Worktree Manager ([worktree_manager.py](../../wintermute/app/adapters/outbound/worktree_manager.py)):** Manages ephemeral per-task workspaces (`.wintermute/worktrees/<task_id>` with lazy `git worktree add` or Btrfs CoW snapshots, plus `--no-worktree` direct mode) and isolated `build/workspace/<task_id>` outputs.
    - **SQLite Storage ([sqlite_storage.py](../../wintermute/app/adapters/outbound/sqlite_storage.py)):** Unified persistence for tasks, work units, subagent runs, audit events, cost ledger, model pricing cache, and hybrid `FTS5` + `sqlite-vec` memory.
    - **Auto-Pricing Catalog ([pricing_catalog.py](../../wintermute/app/adapters/outbound/pricing_catalog.py)):** Syncs live model rates from `models.dev` with OpenRouter fallback and hardcoded emergency rates.
@@ -28,8 +28,8 @@ Wintermute follows a strict hexagonal architecture inside [wintermute/app/](../.
 
 Wintermute uses a clean three-tier configuration model:
 
-- **Platform & Pipeline Config ([wintermute.toml](../../wintermute/wintermute.toml) + `.wintermute/config.toml`):** Defines `[models.*]` profiles (Gemini, Vertex, local OpenAI-compatible, LiteRT), `[agents.*]` defaults and token/call budgets, `[cost]`, `[memory]`, `[concurrency.build_locks]`, and `[pipeline]` templates. Secrets and runtime environment overrides (such as `GEMINI_API_KEY` or `WINTERMUTE_MAX_TASK_USD`) are automatically loaded via `python-dotenv` from `.env`, `.wintermute/.env`, or `wintermute/.env` without overriding variables already exported in the shell.
-- **Role Definitions ([wintermute/agents/](../../wintermute/agents)):** Markdown files (`<role>.md`) with YAML frontmatter controlling `description`, `read_only`, default `skills`, `allowed_subagents`, `allowed_tools` (supporting `@domain`, `@read_only`, and globs), and `denied_tools`, paired with the role's system prompt body. Project-local overrides live in `.wintermute/agents/<role>.md`.
+- **Platform & Pipeline Config ([wintermute.toml](../../wintermute/wintermute.toml) + `.wintermute/config.toml`):** Defines `[models.*]` profiles (Gemini, Vertex, local OpenAI-compatible, LiteRT), `[agents.*]` defaults (`model`, `thinking_level`, `compaction_token_threshold`, and token/call budgets), `[cost]`, `[memory]`, `[concurrency.build_locks]`, and `[pipeline]` templates. Secrets and runtime environment overrides (such as `GEMINI_API_KEY` or `WINTERMUTE_MAX_TASK_USD`) are automatically loaded via `python-dotenv` from `.env`, `.wintermute/.env`, or `wintermute/.env` without overriding variables already exported in the shell.
+- **Role Definitions ([wintermute/agents/](../../wintermute/agents)):** Markdown files (`<role>.md`) with YAML frontmatter controlling `description`, `read_only`, optional `thinking_level` / `compaction_token_threshold`, default `skills`, `allowed_subagents`, `allowed_tools` (supporting `@domain`, `@read_only`, and globs), and `denied_tools`, paired with the role's system prompt body. Project-local overrides live in `.wintermute/agents/<role>.md`.
 - **Portable Skills ([wintermute/skills/](../../wintermute/skills)):** Follows the `agentskills.io` specification (`SKILL.md` with strict `name` and `description` frontmatter) passed via `skills_paths` for progressive disclosure and stage instruction injection.
 
 ---
@@ -84,7 +84,7 @@ just wintermute exec "Patch CVE-2025-1234 in zlib" --domain packages --target zl
 # Execute directly in the workspace without creating a git worktree
 just wintermute exec "Update README notes" --domain docs --no-worktree
 
-# Resume a paused or existing task (optionally granting extra budget) or retry a WorkUnit
+# Resume a paused or existing session (optionally granting extra budget) or retry a WorkUnit
 just wintermute exec --resume task_abc123 --budget-top-up 5.0
 just wintermute exec --work-unit wu_xyz789 --from-start
 
@@ -103,4 +103,4 @@ just wintermute lint
 just wintermute test
 ```
 
-Inside `wintermute chat`, slash commands provide live inspection and control: `/sessions [n]`, `/resume <id|prefix|#n|latest>`, `/rename <title>`, `/new`, `/status`, `/fast-path [on|off]`, `/wu-resume [id] [hint]`, `/wu-retry [id] [hint]`, `/history [n]`, `/retry [n]`, `/pipeline`, `/cost`, `/budget +<amount> | daily [+]<amount>`, `/diff`, `/tools [role] [domain]`, `/memory [query]`, `/help`, and `/exit`.
+Inside `wintermute chat`, slash commands provide live inspection and control: `/sessions [n|<id>|show <id>|delete <id>|rename <id> <title>|resume <id>]`, `/resume <id|prefix|#n|latest>`, `/rename <title>`, `/new`, `/status [id]`, `/fast-path [on|off]`, `/wu-resume [id] [hint]`, `/wu-retry [id] [hint]`, `/history [n]`, `/retry [n]`, `/pipeline`, `/cost [id]`, `/budget +<amount> | daily [+]<amount>`, `/diff`, `/tools [role] [domain]`, `/memory [query]`, `/help`, and `/exit`.

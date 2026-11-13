@@ -67,8 +67,8 @@ Configuration separates infrastructure, role permissions, and reusable workflows
 
 | Tier | Source Files | Responsibility |
 | :--- | :--- | :--- |
-| **Platform & Pipelines** | [wintermute.toml](../../wintermute/wintermute.toml), `.wintermute/config.toml` | `[models.*]` profiles (Gemini API, Vertex AI, `openai_compat`, `litert`, `thinking_level`), `[agents.*]` model/budget defaults, `[cost]`, `[memory]`, `[concurrency.build_locks]`, `[pipeline]` templates, and `domain_defaults`. |
-| **Role Definitions** | `wintermute/agents/<role>.md`, `.wintermute/agents/<role>.md` | YAML frontmatter (`description`, `read_only`, `skills`, `allowed_subagents`, `allowed_tools`, `denied_tools`) + markdown system instructions. Supports `@domain`, `@read_only`, and glob tool patterns. |
+| **Platform & Pipelines** | [wintermute.toml](../../wintermute/wintermute.toml), `.wintermute/config.toml` | `[models.*]` profiles (Gemini API, Vertex AI, `openai_compat`, `litert`), `[agents.*]` model/`thinking_level`/`compaction_token_threshold`/budget defaults, `[cost]`, `[memory]`, `[concurrency.build_locks]`, `[pipeline]` templates, and `domain_defaults`. |
+| **Role Definitions** | `wintermute/agents/<role>.md`, `.wintermute/agents/<role>.md` | YAML frontmatter (`description`, `read_only`, `thinking_level`, `compaction_token_threshold`, `skills`, `allowed_subagents`, `allowed_tools`, `denied_tools`) + markdown system instructions. Supports `@domain`, `@read_only`, and glob tool patterns. |
 | **Agent Skills** | `wintermute/skills/<skill>/SKILL.md`, `.wintermute/skills/<skill>/SKILL.md` | Follows the [agentskills.io](https://agentskills.io/) specification (`name`, `description` frontmatter) surfaced via SDK `skills_paths` for progressive disclosure and stage prompt injection. |
 
 ---
@@ -86,7 +86,7 @@ Configuration separates infrastructure, role permissions, and reusable workflows
 
 ### Antigravity SDK Guardrails ([antigravity_harness.py](../../wintermute/app/adapters/outbound/antigravity_harness.py))
 
-* **Capabilities & Subagents:** `CapabilitiesConfig` explicitly enables filtered built-in tools (`read_only` stages strip `edit_file`, `create_file`, and `run_command`), populates `SubagentConfig` targets from `allowed_subagents`, and propagates `ModelProfile.thinking_level` (`GeminiModelOptions.thinking_level`) onto Gemini/Vertex targets.
+* **Capabilities & Subagents:** `CapabilitiesConfig` explicitly enables filtered built-in tools (`read_only` stages strip `edit_file`, `create_file`, and `run_command`), populates `SubagentConfig` targets from `allowed_subagents`, and propagates role `AgentRoleConfig.thinking_level` (or escalation override via `GeminiModelOptions.thinking_level`) onto Gemini/Vertex targets.
 * **Deny-First Exact Policy:** Constructs ordered `PolicyBuilder` rules: blocks raw `cargo`/`pytest`/`straylight`/`fstools` invocations inside `run_command` via `should_block_raw_command`, applies explicit denies (`read_only` writes + `denied_tools`), adds exact `policy.allow(name)` entries for allowed synthesized `just_*` and built-in tools, and finishes with `policy.deny("*", ..., name="deny_all")`.
 * **Runtime Hooks & Sessions:** Attaches `@hooks.stop` (verifying worktree edits before allowing stop), `@hooks.pre_tool_call_decide` (lazy sub-repo materialization prior to writes), `@hooks.on_interaction` (interactive clarification routing), `@hooks.post_tool_call`, and 36-char UUID4 `conversation_id` persistence with `SessionContinuationMode.CREATE_OR_RESUME`.
 
