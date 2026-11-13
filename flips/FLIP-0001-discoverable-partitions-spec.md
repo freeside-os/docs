@@ -2,7 +2,7 @@
 flip: 0001
 title: "Zero-Config Boot via systemd Discoverable Partitions Specification (DPS)"
 authors: ["Lead Engineer & Freeside OS Core Team"]
-status: proposed
+status: accepted
 created: 2026-07-28
 type: architectural
 component: installer
@@ -22,23 +22,20 @@ Transition from explicit kernel command-line parameters (`rd.luks.name=...`, `ro
 
 ### 1. Partition Type UUIDs
 Assign exact DPS Partition Type UUIDs during disk partitioning:
-- **Root LUKS (x86-64)**: `7ff06982-63b1-4b5f-927a-01a257c2c7de`
+- **Linux Root (x86-64)**: `4f68bce3-e8cd-4db1-96e7-fbcaf984b709`
 - **EFI System Partition**: `c12a7328-f81f-11d2-ba4b-00a0c93ec93b`
 
 ### 2. Default Btrfs Subvolume
 Designate `@usr_gen0` as the default Btrfs subvolume during filesystem creation:
 ```bash
-btrfs subvolume set-default <subvol_id_of_@usr_gen0> /mnt/freeside-install
+btrfs subvolume set-default /mnt/freeside-install/@usr_gen0
 ```
 
-### 3. Simplified Bootloader Options
-The loader entry `freeside.conf` options simplify to:
-```ini
-options root=gpt-auto console=ttyS0,115200 earlyprintk=serial,ttyS0,115200
-```
+### 3. Type #2 UKI Auto-Discovery
+Deploy the UKI PE binary directly to `/boot/EFI/Linux/freeside.efi` (and `/boot/EFI/BOOT/BOOTX64.EFI` for UEFI fallback) with `root=gpt-auto` embedded in the UKI `.cmdline` section, requiring only a minimal `/boot/loader/loader.conf` (`timeout 3`).
 
 ## Implementation
 
-1. **Storage Service**: Update `StorageService` to apply DPS Partition Type UUIDs.
-2. **Btrfs Service**: Update `BtrfsService` to execute `btrfs subvolume set-default`.
-3. **Bootloader Service**: Update `BootloaderService` to output `options root=gpt-auto`.
+1. **Storage Service**: `StorageService.set_root_partition_type` applies the DPS Linux Root (x86-64) GPT Partition Type UUID via `sfdisk --part-type`.
+2. **Btrfs Service**: `BtrfsService.create_subvolumes` executes `btrfs subvolume set-default` on `@usr_gen0`.
+3. **Bootloader Service**: `BootloaderService.deploy_uki` copies the UKI to `/boot/EFI/Linux/freeside.efi` and `/boot/EFI/BOOT/BOOTX64.EFI` and writes `/boot/loader/loader.conf`.

@@ -83,14 +83,15 @@ just live::build
 ```
 
 This command:
-1. Compiles any missing `live-image` tool dependencies (`mtools`, `xorriso`, `squashfs-tools`) inside the sandbox, so the host has the required ISO assembly utilities.
-2. Runs `packages/fsimage.py` on the host, which:
+1. Ensures `build/straylight`, `build/fstools`, and `build/freeside-install` are built (`straylight::build`, `fstools::build`, `installer::build`).
+2. Compiles any missing `live-image` group dependencies (`live-initramfs`, `mtools`, `xorriso`, `squashfs-tools`) inside the sandbox (`sudo -E build/straylight build --group live-image`).
+3. Runs `build/fstools image build` on the host, which:
    - Resolves the topologically-sorted package list for the `base` and `system` groups.
-   - Extracts each package's compiled tarball into a SquashFS staging root (with UsrMerge symlinks).
+   - Extracts each package's compiled tarball into a SquashFS staging root (with UsrMerge symlinks) and injects the `freeside-install` TUI binary.
    - Places the bootstrap environment (`sandbox-root.tgz`) and package tarballs inside `/var/cache/freeside/` within the SquashFS tree.
    - Compresses the root tree into `rootfs.squashfs` using `mksquashfs` with Zstd compression.
-   - Assembles a 70 MB UEFI FAT boot image with systemd-boot, the kernel, and the initramfs.
-   - Invokes `xorriso` with UEFI parameters and `-iso-level 3` (to allow files larger than 4 GiB) to output the hybrid image at `build/freeside-iso.img`.
+   - Assembles a UEFI FAT boot image with systemd-boot, the kernel, and the initramfs (including the `live-initramfs` generator overlay).
+   - Invokes `xorriso` with UEFI parameters and `-iso-level 3` (to allow files larger than 4 GiB) to output the hybrid image at `build/freeside-live.iso`.
 
 > **Note:** The SquashFS rootfs is always built fresh from package tarballs; caching is disabled to prevent stale package configurations or systemd unit changes from being silently bypassed.
 
@@ -104,16 +105,16 @@ Boot the live ISO directly with the provided just target:
 just live::run
 ```
 
-This runs QEMU with KVM acceleration, 2 GB of memory, and OVMF UEFI firmware. It boots from the live image (`build/freeside-iso.img`) emulating a USB thumbdrive, and attaches a target virtual disk (`build/disk.img`) as the primary SATA hard drive where the system will be installed. The serial console is redirected to the terminal:
+This runs QEMU with KVM acceleration (`-M q35`), 2 GB of memory, and OVMF UEFI firmware. It boots from the live image (`build/freeside-live.iso`) emulating a USB thumbdrive, and attaches a target virtual disk (`build/disk.img`) as the primary SATA hard drive where the system will be installed. The serial console is redirected to the terminal:
 ```bash
 qemu-system-x86_64 \
-    -enable-kvm -cpu host -m 2G \
+    -enable-kvm -M q35 -cpu host -m 2G \
     -bios /usr/share/ovmf/x64/OVMF.4m.fd \
     -device ahci,id=sata \
     -drive file=build/disk.img,id=primary_disk,format=raw,if=none \
     -device ide-hd,bus=sata.0,drive=primary_disk,bootindex=2 \
     -device qemu-xhci,id=xhci \
-    -drive file=build/freeside-iso.img,id=usbkey,format=raw,if=none \
+    -drive file=build/freeside-live.iso,id=usbkey,format=raw,if=none \
     -device usb-storage,bus=xhci.0,drive=usbkey,removable=on,bootindex=1 \
     -nographic -serial mon:stdio
 ```

@@ -67,7 +67,7 @@ To keep the builder sandbox lightweight and prevent init system or package manag
 
 Straylight integrates with the sandbox using three strictly required environment variables (with no implicit defaults or fallbacks):
 
-1.  **`STRAYLIGHT_PACKAGES_ROOT`**: Locates the packages source recipes and manifests (e.g. `/home/dq/Code/freeside/packages`).
+1.  **`STRAYLIGHT_PACKAGES_ROOT`**: Locates the packages source recipes and manifests (e.g. `$(pwd)/packages`).
 2.  **`STRAYLIGHT_BUILDER_ROOT`**: Determines where the sandbox runtime files (`sandbox/`, `workspace/`, and `sandbox-root.tgz`) reside.
     *   Straylight checks for the sandbox directory under `$STRAYLIGHT_BUILDER_ROOT/sandbox`.
     *   If it does not exist, it locates `$STRAYLIGHT_BUILDER_ROOT/sandbox-root.tgz` and automatically extracts it to `$STRAYLIGHT_BUILDER_ROOT/sandbox` using host-side `tar`.
@@ -100,8 +100,7 @@ To eliminate Alpine Linux host library dependencies and achieve a 100% pure Free
 The bootstrap process (`just bootstrap::build-sandbox`) builds packages inside the Alpine container. Because Alpine's host compilers are used, some tools (like `clang`, `sed`, `grep`, `gawk`, and `diffutils`) link against Alpine system libraries (e.g., `libstdc++.so.6` or `libpcre2-8.so.0`). To ensure these tools can run inside the initial sandbox, these helper libraries are exported to the initial `sandbox-root-bootstrap.tgz` (which is compiled into `build/bootstrap/sandbox-root.tgz` and manually promoted to `build/sandbox-root.tgz`).
 
 ### Stage 1: Sandbox Recompilation (99% Pure)
-When the root coordinator runs `just sys::build-sandbox` (or using the alias: `just build-sandbox`), the build directory is cleared, the bootstrap sandbox is extracted, and `straylight` rebuilds all `base` and `builder` packages from source *inside* the isolated sandbox. 
-Since the build runs inside the Freeside sandbox:
+When `straylight` rebuilds all `base` and `builder` packages (`just pkg::build-group base` and `just pkg::build-group builder`) inside the isolated sandbox and `just sandbox::build` (`build/fstools sandbox build`, or alias `just build-sandbox`) assembles the rootfs:
 1. Custom packages like `sed`, `grep`, `diffutils`, and `gawk` are compiled using Freeside’s own toolchain with NLS disabled.
 2. The newly compiled packages link only against Freeside's native libraries (such as LLVM's C++ library `libc++.so` instead of GNU's `libstdc++.so.6`).
 3. The resulting packages are packaged into `build/sandbox-root.tgz`.

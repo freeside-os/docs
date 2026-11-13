@@ -22,7 +22,7 @@ The `fstools` utility (specifically the `fstools initrd` subcommand group) is de
 The baseline packages included in the initramfs are defined in the `fstools` codebase (`fstools/src/fstools/initrd.py`).
 
 To customize the packages included in the initramfs:
-1.  **Add/Remove Packages:** Edit the `REQUIRED_BOOT_PACKAGES` list in `fstools/src/fstools/initrd.py` to specify additional packages (e.g., adding `lvm2`, `strace`, or custom network tools).
+1.  **Add/Remove Packages:** Edit the `REQUIRED_BOOT_PACKAGES` list in `fstools/src/fstools/initrd.py` (which includes `musl`, `base-files`, `systemd`, `cryptsetup`, `btrfs-progs`, `util-linux`, `kmod`, `bash`, `libcap`, `openssl`, `xz`, `zstd`, `zlib`, `json-c`, and `lvm2`) to specify additional packages (e.g., adding `strace` or custom network tools).
 2.  **Filter Payload Paths:** Adjust `PAYLOAD_EXCLUDE_FILTERS` in the same file to exclude files that are not critical for early booting, which keeps the initramfs lightweight and fast to load.
 3.  **VFS Hierarchy:** Define additional directories or compatibility symlinks in `VFS_SKELETON_DIRECTORIES` or `VFS_COMPATIBILITY_SYMLINKS`.
 
@@ -73,4 +73,4 @@ To construct a bootable UEFI PE executable (`.efi` file) from your customized in
 3.  **Boot the Custom UKI:**
     Copy `freeside-custom.efi` directly to the EFI System Partition (ESP) at `/boot/EFI/Linux/` or boot it under QEMU using the live CD building target.
 
-For more details on package manifest specs, refer to the [Package Packaging Guide](docs/guides/packaging_guide.md) or the [Live Image Build Guide](docs/guides/live_image_build.md).
+For more details on package manifest specs, refer to the [Package Packaging Guide](packaging_guide.md) or the [Live Image Build Guide](live_image_build.md).

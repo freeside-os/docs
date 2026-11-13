@@ -74,7 +74,7 @@ The foundational packages, containing the core C library (`musl`), shells, core 
 | **`grep`** | `3.12` | GNU grep utility |
 | **`gzip`** | `1.13` | GNU compression utilities |
 | **`libffi`** | `3.4.6` | Portable foreign function interface library |
-| **`linux-headers`** | `7.1` | Linux kernel headers for userspace development |
+| **`linux-headers`** | `7.1.3` | Linux kernel headers for userspace development |
 | **`musl`** | `1.2.6` | musl C library (libc) implementation for Freeside |
 | **`ncurses`** | `6.5` | System V-compatible terminal screen handling library |
 | **`openssl`** | `3.3.1` | Secure Sockets Layer toolkit |
@@ -123,13 +123,14 @@ The compilation toolchain, compiler infrastructure, and auxiliary build helpers.
 
 ### C. The `system` Group
 
-System management utilities, core system daemons, service orchestration, and main system libraries.
+System management utilities, core system daemons, service orchestration, Unified Kernel Image (UKI), and main system libraries.
 
 | Package Name | Version | Description |
 | :--- | :--- | :--- |
 | **`btrfs-progs`** | `7.0` | Btrfs filesystem utilities |
 | **`cryptsetup`** | `2.8.6` | Disk encryption setup utility using dm-crypt |
 | **`dbus-broker`** | `37` | Linux D-Bus Message Broker — high-performance drop-in replacement |
+| **`fstools`** | `1.1.0` | Freeside Developer and Builder Tools |
 | **`glib2`** | `2.88.2` | Low-level core library for GNOME and GTK applications |
 | **`iwd`** | `3.12` | Internet Wireless Daemon — lightweight Wi-Fi management |
 | **`json-c`** | `0.17` | A JSON implementation in C |
@@ -138,10 +139,13 @@ System management utilities, core system daemons, service orchestration, and mai
 | **`libarchive`** | `3.7.9` | Multi-format archive and compression library |
 | **`libcap`** | `2.70` | POSIX 1003.1e capabilities library |
 | **`libexpat`** | `2.6.2` | Stream-oriented XML parser library |
+| **`linux-uki`** | `7.1.3` | Unified Kernel Image (UKI) PE executable for Freeside boot |
+| **`lvm2`** | `2.03.22` | Logical Volume Manager 2 utilities and Device Mapper library |
 | **`musl-utils`** | `1.2.5` | Utility programs for musl libc (ldd, iconv, getent, getconf) |
 | **`pam`** | `1.7.2` | Pluggable Authentication Modules library |
 | **`polkit`** | `127` | PolicyKit authorization framework |
 | **`procps-ng`** | `4.0.6` | Utilities for monitoring running processes (ps, top, free, etc.) |
+| **`shadow`** | `0.2.0` | Memory-safe Rust reimplementation of Linux shadow-utils |
 | **`straylight`** | `1.0.0` | Straylight Package Manager CLI |
 | **`systemd`** | `261.1` | System and Service Manager |
 | **`tpm2-tools`** | `5.6` | TPM 2.0 command-line tools |
@@ -152,7 +156,7 @@ System management utilities, core system daemons, service orchestration, and mai
 
 ### D. The `linux` Group
 
-Linux kernel builds, initramfs generation, UKI images, and kernel-adjacent support libraries.
+Linux kernel builds, initramfs generation, and kernel-adjacent support libraries.
 
 | Package Name | Version | Description |
 | :--- | :--- | :--- |
@@ -160,20 +164,20 @@ Linux kernel builds, initramfs generation, UKI images, and kernel-adjacent suppo
 | **`base-initramfs`** | `1.0.0` | Freeside base initramfs image and early boot scripts |
 | **`bc`** | `1.08.2` | Arbitrary precision numeric processing language (kernel build dependency) |
 | **`elfutils`** | `0.195` | ELF object file utilities and libraries |
-| **`linux-kernel`** | `7.1.0` | Linux kernel source build (vmlinuz) |
-| **`linux-mainline`** | `7.1.0` | Linux mainline kernel configuration and patches |
-| **`linux-modules`** | `7.1.0` | Linux kernel loadable modules |
-| **`linux-uki`** | `7.1.0` | Unified Kernel Image (UKI) for direct UEFI boot |
+| **`linux-kernel`** | `7.1.3` | Linux kernel source build (vmlinuz) |
+| **`linux-mainline`** | `7.1.3` | Linux mainline kernel configuration and patches |
+| **`linux-modules`** | `7.1.3` | Linux kernel loadable modules |
 | **`musl-fts`** | `1.2.7` | Implementation of fts(3) for musl libc |
 | **`musl-obstack`** | `1.1` | Implementation of obstack for musl libc |
 | **`python-pefile`** | `2024.8.26` | Python library for parsing and working with PE (Portable Executable) files |
 
 ### E. The `live-image` Group
 
-Tools for building bootable live ISO images and related media utilities.
+Tools and early-boot overlays for building bootable live ISO images and related media utilities.
 
 | Package Name | Version | Description |
 | :--- | :--- | :--- |
+| **`live-initramfs`** | `1.0.0` | Micro initramfs overlay for Freeside Live ISO boot media |
 | **`mtools`** | `4.0.49` | Utilities to access MS-DOS disks without mounting them |
 | **`squashfs-tools`** | `4.7.5` | Tools for creating and extracting SquashFS filesystems |
 | **`xorriso`** | `1.5.6.pl02` | ISO 9660 Rock Ridge filesystem creation and manipulation tool |

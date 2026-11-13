@@ -91,12 +91,18 @@ To improve build modularity, decouple release cycles, and organize dependencies,
 freeside/ (Local Workspace)
 ├── bootstrap/                   # git@github.com:freeside-os/bootstrap.git
 │                                # Stage 0/1 compilation engine, Docker build envs, sandbox packaging
+├── docs/                        # git@github.com:freeside-os/docs.git
+│                                # System specifications, packaging guides, reference schemas, and FLIPs
+├── fstools/                     # git@github.com:freeside-os/fstools.git
+│                                # Python builder/developer CLI (pkg, initrd, image, sandbox) packaged via PEX
+├── installer/                   # git@github.com:freeside-os/installer.git
+│                                # Interactive Textual TUI system installer (freeside-install)
 ├── packages/                    # git@github.com:freeside-os/packages.git
 │                                # User-space and system declarative package manifests and recipes
 ├── straylight/                  # git@github.com:freeside-os/straylight.git
 │                                # Rust CLI client, compilation daemon (straylightd), and state sync orchestrator
-└── docs/                        # git@github.com:freeside-os/docs.git
-                                 # System specifications, packaging guides, and diagrams
+└── wintermute/                  # git@github.com:freeside-os/wintermute.git
+                                 # Autonomous agentic development and packaging harness
 ```
 
 ---
@@ -144,38 +150,38 @@ During a kernel-related system update, `straylight` bypasses all classic boot se
 
 ## 6. System Installation & Provisioning
 
-The **freeside-installer** is a secure, interactive TUI written in Rust using the `ratatui` framework.
+The **freeside-installer** (`freeside-install`) is a declarative, interactive TUI written in Python using the `textual` framework and packaged as a standalone PEX zipapp (`build/freeside-install`).
 
 ```mermaid
 graph TD
     boot["Freeside Live ISO Boot"]
-    partition["Partition & format targets<br/>(1GB EFI System Partition + LUKS2 Btrfs)"]
-    subvol["Build Btrfs Subvolume Tree<br/>• Mount @usr as read-only (ro)<br/>• Mount @var as read-write (rw)"]
-    casync["Extract core system chunks via casync<br/>(Pulls from local ISO media or CDN mirrors)"]
-    kernel["Bootstrapping Unified Kernel<br/>(Copy signed UKI direct to Partition 1 ESP)"]
+    partition["Partition & format targets<br/>(EFI System Partition + DPS Root Type UUID + LUKS2 Btrfs)"]
+    subvol["Build Btrfs Subvolume Tree<br/>• Create @usr_gen0, @var, (optional @home)<br/>• Set @usr_gen0 as default Btrfs subvolume"]
+    seed["Hydrate Target Rootfs<br/>(Extract compiled base & system package tarballs)"]
+    kernel["Deploy Unified Kernel Image (UKI)<br/>(Copy UKI to /boot/EFI/Linux/freeside.efi & /boot/EFI/BOOT/BOOTX64.EFI)"]
     tpm["Enroll cryptographically bound keys<br/>(Binds LUKS2 keys to physical Hardware TPM2)"]
-    state["Generate stateless state files<br/>• Writes packages.toml (Profile target state)<br/>• Writes tree.toml (Primes initial boot ledger)"]
+    state["Configure System Identity & State<br/>(Hostname, locale, root/user accounts, OverlayFS /etc)"]
 
     boot --> partition
     partition --> subvol
-    subvol --> casync
-    casync --> kernel
+    subvol --> seed
+    seed --> kernel
     kernel --> tpm
     tpm --> state
 ```
 
 ### Provisions and Security Configuration
 
-1.  **Target Disk Formatting:** Sets up a clean GPT partition layout:
-    *   **Partition 1:** FAT32 (1GB minimum), mounted to `/boot` (EFI System Partition, ESP).
-    *   **Partition 2:** LUKS2 encrypted Btrfs partition, containing the root pool.
-2.  **Subvolume Layout Creation:** Configures the Btrfs pool layout:
-    *   `@usr` (the immutable core system, mounted read-only)
+1.  **Target Disk Formatting & DPS Type UUIDs ([FLIP-0001](../flips/FLIP-0001-discoverable-partitions-spec.md)):** Sets up a clean GPT partition layout:
+    *   **Partition 1:** FAT32 (EFI System Partition, ESP), mounted to `/boot`.
+    *   **Partition 2:** Assigned the systemd Discoverable Partitions Specification (DPS) Linux root (x86-64) type UUID (`4f68bce3-e8cd-4db1-96e7-fbcaf984b709`) and formatted with LUKS2 (`argon2id`) containing the Btrfs pool.
+2.  **Subvolume Layout Creation:** Configures the Btrfs pool layout (`compress=zstd:3`):
+    *   `@usr_gen0` (initial immutable system generation, set as the default Btrfs subvolume via `btrfs subvolume set-default`)
     *   `@var` (persistent local storage, mounted read-write)
-3.  **casync Extraction Phase:** Runs a local casync extract command directly into the target `@usr` subvolume from local USB media or remote mirrors, avoiding slow file-by-file copy loops.
-4.  **Bootstrapping the UKI:** Copies the signed pre-built Unified Kernel Image (`freeside-linux-atomic.efi`) directly to Partition 1 at `/boot/EFI/Linux/freeside-linux-atomic.efi`.
-5.  **TPM2 & Encryption Binding:** Binds the LUKS2 decryption key directly to the machine's Hardware TPM2 chip utilizing `systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7`. This guarantees that the system will only auto-decrypt if firmware integrity checks pass and Secure Boot is strictly enforced.
-6.  **Writing Declarative Configuration State:** Generates `/etc/freeside/packages.toml` with the operator's chosen system profile and target tree pointer, and writes the matching read-only `/etc/freeside/tree.toml` file to record the successfully initialized base system state.
+    *   `@home` (optional dedicated user home subvolume)
+3.  **System Hydration Phase:** Extracts the local package archives (`base` and `system` groups) and initializes UsrMerge symlinks and `/var/lib/freeside/mutable-etc` OverlayFS directories.
+4.  **Bootstrapping the UKI:** Installs `systemd-boot` via `bootctl` and copies the pre-built Unified Kernel Image (`uki-*.efi`) to `/boot/EFI/Linux/freeside.efi` (for Type #2 auto-discovery) and `/boot/EFI/BOOT/BOOTX64.EFI` (UEFI default fallback path).
+5.  **TPM2 & Encryption Binding:** Optionally binds the LUKS2 decryption key directly to the machine's Hardware TPM2 chip utilizing `systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7`.
 
 ---
 

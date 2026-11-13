@@ -6,14 +6,17 @@ This guide describes how to set up your local development workspace, build the b
 
 ## 1. Developer Workspace Setup
 
-Freeside is structured as multiple repositories checked out under a single parent workspace folder. To set up your local workspace, check out the repositories into the following directory layout:
+Freeside is structured as multiple repositories checked out under a single parent workspace folder (`just setup` or `./setup.sh` automates cloning):
 
 ```text
 freeside/ (Workspace Root)
-├── bootstrap/                   # git@github.com:freeside-os/bootstrap.git
+├── bootstrap/                   # git@github.com:freeside-os/bootstrap.git (optional: --include-bootstrap)
+├── docs/                        # git@github.com:freeside-os/docs.git
+├── fstools/                     # git@github.com:freeside-os/fstools.git
+├── installer/                   # git@github.com:freeside-os/installer.git
 ├── packages/                    # git@github.com:freeside-os/packages.git
 ├── straylight/                  # git@github.com:freeside-os/straylight.git
-└── docs/                        # git@github.com:freeside-os/docs.git
+└── wintermute/                  # git@github.com:freeside-os/wintermute.git
 ```
 
 ### Host Requirements
@@ -21,7 +24,7 @@ freeside/ (Workspace Root)
 Your local development machine must satisfy the following:
 *   **Operating System:** Linux (Arch Linux is recommended)
 *   **Privileges:** Sudo/root access (required for container sandboxing via `systemd-nspawn`)
-*   **Required Packages:** `just` (>= 1.51.0), `systemd` (with `systemd-nspawn`), `curl`, `tar`, `docker` (optional, for Stage 0 build)
+*   **Required Packages:** `just` (>= 1.51.0), `uv`, `systemd` (with `systemd-nspawn`), `curl`, `tar`, `docker` (optional, for Stage 0 build)
 
 ---
 
@@ -44,21 +47,32 @@ Freeside OS bootstrapping is a two-stage process:
     cp build/bootstrap/sandbox-root.tgz build/sandbox-root.tgz
     ```
 
-3.  **Stage 1: Pure Sandbox Recompilation**
-    To rebuild the base and builder packages inside the isolated Freeside sandbox (discarding Alpine host dependencies and compiling pure Freeside packages):
+3.  **Stage 1: Pure Sandbox Recompilation & Assembly**
+    Once the `base` and `builder` package groups are compiled inside the isolated Freeside sandbox (`just pkg::build-group base` and `just pkg::build-group builder`), assemble the pure `build/sandbox-root.tgz` archive using `fstools`:
     ```bash
-    just sys::build-sandbox   # Or use alias: just build-sandbox
+    just sandbox::build       # Or use aliases: just build-sandbox / just sys::build-sandbox
     ```
-    This compiles the packages inside the sandbox and generates the final, pure `build/sandbox-root.tgz`.
 
-### B. Compiling the Straylight CLI
+### B. Compiling Developer & System Binaries
 
-To compile the `straylight` CLI manager:
-1.  Execute the straylight build command:
+Each subproject provides its own `justfile` exposed as a module from the root orchestrator:
+
+*   **Straylight CLI (`build/straylight`):**
     ```bash
     just straylight::build    # Or use alias: just build-straylight
     ```
-2.  This builds the Rust binary under `straylight/` and copies the compiled executable output to `build/straylight`.
+*   **Fstools ZipApp (`build/fstools` & synced to `packages/fstools/`):**
+    ```bash
+    just fstools::build
+    ```
+*   **Installer ZipApp (`build/freeside-install`):**
+    ```bash
+    just installer::build     # Or use alias: just build-installer
+    ```
+*   **Run All Unit Test Suites:**
+    ```bash
+    just test-all
+    ```
 
 ### C. Compiling Packages Locally
 
